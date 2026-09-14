@@ -1,6 +1,6 @@
 export const cardStyle = {
   background: '#fff',
-  border: '1px solid #E8E5DE',
+  border: '2px solid #14361F',
   borderRadius: 14,
   padding: 18,
 };
