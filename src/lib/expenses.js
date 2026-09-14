@@ -22,14 +22,6 @@ export function normalizeFixedEntry(raw) {
   return { estimated: raw, actual: raw }; // legacy single-value data
 }
 
-export function committedFixed(entry) {
-  const act = parseFloat(entry.actual);
-  if (!isNaN(act)) return act;
-  const est = parseFloat(entry.estimated);
-  if (!isNaN(est)) return est;
-  return 0;
-}
-
 // Variable (budget) categories: a monthly budget plus a running list of
 // individual spend entries, e.g. groceries bought week by week.
 export function normalizeVariableEntry(raw) {
@@ -47,18 +39,8 @@ export function normalizeVariableEntry(raw) {
   return { budget: raw, spent: [] }; // legacy single-value data
 }
 
-export function committedVariable(entry) {
-  const budget = parseFloat(entry.budget) || 0;
-  const spentSum = entry.spent.reduce((s, v) => s + (parseFloat(v) || 0), 0);
-  return Math.max(budget, spentSum);
-}
-
 export function normalizeEntryFor(cat, raw) {
   return cat.type === 'fixed' ? normalizeFixedEntry(raw) : normalizeVariableEntry(raw);
-}
-
-export function committedAmountFor(cat, entry) {
-  return cat.type === 'fixed' ? committedFixed(entry) : committedVariable(entry);
 }
 
 export function buildCurrentExpenses(expensesObj, categories) {
@@ -69,9 +51,17 @@ export function buildCurrentExpenses(expensesObj, categories) {
   return out;
 }
 
-export function sumCommittedExpenses(expensesObj, categories) {
+// Real money actually spent so far - the fixed "actual" once paid, or the
+// running total of a variable category's logged spend entries. Unlike a
+// budget/estimate, this never counts money that hasn't gone out yet.
+export function actualAmountFor(cat, entry) {
+  if (cat.type === 'fixed') return parseFloat(entry.actual) || 0;
+  return entry.spent.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+}
+
+export function sumActualExpenses(expensesObj, categories) {
   return categories.reduce((sum, cat) => {
     const entry = normalizeEntryFor(cat, expensesObj?.[cat.name]);
-    return sum + committedAmountFor(cat, entry);
+    return sum + actualAmountFor(cat, entry);
   }, 0);
 }

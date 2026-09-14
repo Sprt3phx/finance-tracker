@@ -13,5 +13,9 @@ export const MONTHS_KEY = 'finance-months';
 export const CATEGORIES_KEY = 'finance-categories';
 export const GOALS_KEY = 'finance-goals';
 export const SUBSCRIPTIONS_KEY = 'finance-subscriptions';
+export const EXTRA_ORDER_KEY = 'finance-extra-order';
+
+export const EXTRA_FIELD_NAMES = { paycheck: 'Paycheck', sideCash: 'Side cash', bonuses: 'Bonuses', overtime: 'Overtime' };
+export const DEFAULT_EXTRA_ORDER = ['paycheck', 'sideCash', 'bonuses', 'overtime'];
 
 export const CYCLE_LABEL = { weekly: '/wk', monthly: '/mo', yearly: '/yr' };

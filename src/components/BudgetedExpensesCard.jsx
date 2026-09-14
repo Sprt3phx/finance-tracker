@@ -2,85 +2,73 @@ import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatMoney, sumEntries } from '../lib/format';
 import { cardStyle, labelStyle, inputStyle, dollarSignStyle } from '../styles';
+import ReorderButtons from './ReorderButtons';
 
-export default function ExpenseCategories({
-  categories, currentExpenses, onAddCategory, onRemoveCategory,
-  onUpdateFixed, onUpdateBudget, onAddSpend, onRemoveSpend,
-}) {
+// Weekly/running-spend categories (groceries, gas, etc.): a monthly budget
+// plus a log of individual spend entries - one consistent shape for every
+// row here, same pattern as the Added Money tallies.
+export default function BudgetedExpensesCard({ categories, currentExpenses, onAddCategory, onRemoveCategory, onMoveCategory, onUpdateBudget, onAddSpend, onRemoveSpend }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
-  const [type, setType] = useState('variable');
 
-  const totalEstimated = categories.reduce((sum, cat) => {
-    const entry = currentExpenses[cat.name];
-    return sum + (parseFloat(cat.type === 'fixed' ? entry.estimated : entry.budget) || 0);
-  }, 0);
-  const totalActualPaid = categories.reduce((sum, cat) => {
-    const entry = currentExpenses[cat.name];
-    return sum + (cat.type === 'fixed' ? (parseFloat(entry.actual) || 0) : sumEntries(entry.spent));
-  }, 0);
+  const totalBudgeted = categories.reduce((sum, cat) => sum + (parseFloat(currentExpenses[cat.name].budget) || 0), 0);
+  const totalSpent = categories.reduce((sum, cat) => sum + sumEntries(currentExpenses[cat.name].spent), 0);
 
   function submitAdd() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onAddCategory(trimmed, type);
+    onAddCategory(trimmed, 'variable');
     setName('');
-    setType('variable');
     setShowAdd(false);
   }
 
   return (
     <div style={{ ...cardStyle, marginTop: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <label style={{ ...labelStyle, marginBottom: 0 }}>Expenses by category</label>
+        <label style={{ ...labelStyle, marginBottom: 0 }}>Budgeted spending</label>
         <button
           onClick={() => setShowAdd(!showAdd)}
           style={{ background: 'none', border: 'none', color: '#14361F', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
         >
-          <Plus size={14} /> Category
+          <Plus size={14} /> Budget
         </button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b6f76', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid #F1F0EB' }}>
-        <span>Estimated: <strong style={{ color: '#1C1E21' }}>{formatMoney(totalEstimated)}</strong></span>
-        <span>Actual paid: <strong style={{ color: '#1C1E21' }}>{formatMoney(totalActualPaid)}</strong></span>
+        <span>Budgeted: <strong style={{ color: '#1C1E21' }}>{formatMoney(totalBudgeted)}</strong></span>
+        <span>Spent so far: <strong style={{ color: '#1C1E21' }}>{formatMoney(totalSpent)}</strong></span>
       </div>
 
       {showAdd && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
           <input
             type="text"
-            placeholder="e.g. Pet care"
+            placeholder="e.g. Gas"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitAdd()}
-            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #DCD9D2', fontSize: 14 }}
+            style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #DCD9D2', fontSize: 14 }}
           />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #DCD9D2', fontSize: 14, background: '#fff' }}
-            >
-              <option value="variable">Weekly budget (like groceries)</option>
-              <option value="fixed">One-time bill (like rent)</option>
-            </select>
-            <button onClick={submitAdd} style={{ background: '#14361F', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              Add
-            </button>
-          </div>
+          <button onClick={submitAdd} style={{ background: '#14361F', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            Add
+          </button>
         </div>
+      )}
+
+      {categories.length === 0 && !showAdd && (
+        <p style={{ fontSize: 13, color: '#9A968C', margin: 0 }}>No budgets yet.</p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {categories.map((cat, i) => (
-          <CategoryRow
+          <VariableRow
             key={cat.name}
             cat={cat}
             entry={currentExpenses[cat.name]}
+            isFirst={i === 0}
             isLast={i === categories.length - 1}
             onRemoveCategory={onRemoveCategory}
-            onUpdateFixed={onUpdateFixed}
+            onMoveCategory={onMoveCategory}
             onUpdateBudget={onUpdateBudget}
             onAddSpend={onAddSpend}
             onRemoveSpend={onRemoveSpend}
@@ -91,8 +79,10 @@ export default function ExpenseCategories({
   );
 }
 
-function CategoryRow({ cat, entry, isLast, onRemoveCategory, onUpdateFixed, onUpdateBudget, onAddSpend, onRemoveSpend }) {
+function VariableRow({ cat, entry, isFirst, isLast, onRemoveCategory, onMoveCategory, onUpdateBudget, onAddSpend, onRemoveSpend }) {
   const [spendInput, setSpendInput] = useState('');
+  const budgetNum = parseFloat(entry.budget) || 0;
+  const remaining = budgetNum - sumEntries(entry.spent);
   const rowStyle = { paddingBottom: 14, borderBottom: isLast ? 'none' : '1px solid #F1F0EB', marginBottom: isLast ? 0 : 14 };
 
   function submitSpend() {
@@ -104,57 +94,20 @@ function CategoryRow({ cat, entry, isLast, onRemoveCategory, onUpdateFixed, onUp
   return (
     <div style={rowStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <ReorderButtons
+          canMoveUp={!isFirst} canMoveDown={!isLast}
+          onMoveUp={() => onMoveCategory(cat.name, -1)} onMoveDown={() => onMoveCategory(cat.name, 1)}
+        />
         <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#3A3D42' }}>{cat.name}</span>
         <button
           onClick={() => onRemoveCategory(cat.name)}
           style={{ background: 'none', border: 'none', color: '#B8B4AB', cursor: 'pointer', padding: 4, display: 'flex' }}
-          title="Remove category"
+          title="Remove"
         >
           <Trash2 size={14} />
         </button>
       </div>
 
-      {cat.type === 'fixed' ? (
-        <FixedRow cat={cat} entry={entry} onUpdateFixed={onUpdateFixed} />
-      ) : (
-        <VariableRow
-          cat={cat} entry={entry} spendInput={spendInput} setSpendInput={setSpendInput}
-          submitSpend={submitSpend} onUpdateBudget={onUpdateBudget} onRemoveSpend={onRemoveSpend}
-        />
-      )}
-    </div>
-  );
-}
-
-function FixedRow({ cat, entry, onUpdateFixed }) {
-  const estNum = parseFloat(entry.estimated);
-  const actNum = parseFloat(entry.actual);
-  const hasBoth = !isNaN(estNum) && !isNaN(actNum);
-  const diff = hasBoth ? actNum - estNum : 0;
-  return (
-    <>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-        <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#9A968C' }}>ESTIMATED</span>
-        <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#9A968C' }}>ACTUAL PAID</span>
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <MoneyInput value={entry.estimated} onChange={(v) => onUpdateFixed(cat.name, 'estimated', v)} />
-        <MoneyInput value={entry.actual} onChange={(v) => onUpdateFixed(cat.name, 'actual', v)} />
-      </div>
-      {hasBoth && (
-        <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: diff > 0 ? '#A23E1E' : diff < 0 ? '#14361F' : '#6b6f76' }}>
-          {diff > 0 ? `${formatMoney(diff)} over estimate` : diff < 0 ? `${formatMoney(Math.abs(diff))} under estimate` : 'Right on estimate'}
-        </div>
-      )}
-    </>
-  );
-}
-
-function VariableRow({ cat, entry, spendInput, setSpendInput, submitSpend, onUpdateBudget, onRemoveSpend }) {
-  const budgetNum = parseFloat(entry.budget) || 0;
-  const remaining = budgetNum - sumEntries(entry.spent);
-  return (
-    <>
       <div style={{ fontSize: 11, fontWeight: 600, color: '#9A968C', marginBottom: 4 }}>MONTHLY BUDGET</div>
       <MoneyInput value={entry.budget} onChange={(v) => onUpdateBudget(cat.name, v)} />
       {budgetNum > 0 && (
@@ -191,7 +144,7 @@ function VariableRow({ cat, entry, spendInput, setSpendInput, submitSpend, onUpd
           Add
         </button>
       </div>
-    </>
+    </div>
   );
 }
 

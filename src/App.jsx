@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import MonthSelector from './components/MonthSelector';
 import SummaryCards from './components/SummaryCards';
 import LeftoverSuggestion from './components/LeftoverSuggestion';
 import AddedMoney from './components/AddedMoney';
-import ExpenseCategories from './components/ExpenseCategories';
+import FixedExpensesCard from './components/FixedExpensesCard';
+import BudgetedExpensesCard from './components/BudgetedExpensesCard';
 import SubscriptionsCard from './components/SubscriptionsCard';
 import GoalsCard from './components/GoalsCard';
 import TrendCharts from './components/TrendCharts';
@@ -12,15 +13,20 @@ import { useCategories } from './hooks/useCategories';
 import { useMonthsData } from './hooks/useMonthsData';
 import { useGoals } from './hooks/useGoals';
 import { useSubscriptions } from './hooks/useSubscriptions';
+import { useExtraOrder } from './hooks/useExtraOrder';
 
 export default function FinanceTracker() {
-  const { categories, addCategory, removeCategory, categoriesLoaded, categoriesSaveError } = useCategories();
+  const { categories, addCategory, removeCategory, moveCategory, categoriesLoaded, categoriesSaveError } = useCategories();
   const monthsData = useMonthsData(categories);
-  const { goals, addGoal, removeGoal, addDeposit, removeDeposit, goalsLoaded, goalsSaveError } = useGoals();
+  const { goals, addGoal, removeGoal, addDeposit, removeDeposit, moveGoal, goalsLoaded, goalsSaveError } = useGoals();
   const {
     subscriptions, addSubscription, removeSubscription, subscriptionsLoaded, subscriptionsSaveError,
   } = useSubscriptions();
+  const { order: extraOrder, moveField: moveExtraField } = useExtraOrder();
   const [dismissedSuggestion, setDismissedSuggestion] = useState({});
+
+  const fixedCategories = useMemo(() => categories.filter((c) => c.type === 'fixed'), [categories]);
+  const variableCategories = useMemo(() => categories.filter((c) => c.type === 'variable'), [categories]);
 
   const loading = !categoriesLoaded || !monthsData.monthsLoaded || !goalsLoaded || !subscriptionsLoaded;
   const saveError = categoriesSaveError || monthsData.monthsSaveError || goalsSaveError || subscriptionsSaveError;
@@ -71,14 +77,29 @@ export default function FinanceTracker() {
           onAdd={handleSuggestionAdd}
         />
 
-        <AddedMoney currentExtra={monthsData.currentExtra} onAdd={monthsData.addExtraEntry} onRemove={monthsData.removeExtraEntry} />
+        <AddedMoney
+          currentExtra={monthsData.currentExtra}
+          order={extraOrder}
+          onMoveField={moveExtraField}
+          onAdd={monthsData.addExtraEntry}
+          onRemove={monthsData.removeExtraEntry}
+        />
 
-        <ExpenseCategories
-          categories={categories}
+        <FixedExpensesCard
+          categories={fixedCategories}
           currentExpenses={monthsData.currentExpenses}
           onAddCategory={addCategory}
           onRemoveCategory={removeCategory}
+          onMoveCategory={moveCategory}
           onUpdateFixed={monthsData.updateFixedField}
+        />
+
+        <BudgetedExpensesCard
+          categories={variableCategories}
+          currentExpenses={monthsData.currentExpenses}
+          onAddCategory={addCategory}
+          onRemoveCategory={removeCategory}
+          onMoveCategory={moveCategory}
           onUpdateBudget={monthsData.updateVariableBudget}
           onAddSpend={monthsData.addVariableSpend}
           onRemoveSpend={monthsData.removeVariableSpend}
@@ -86,7 +107,7 @@ export default function FinanceTracker() {
 
         <SubscriptionsCard subscriptions={subscriptions} onAdd={addSubscription} onRemove={removeSubscription} />
 
-        <GoalsCard goals={goals} onAdd={addGoal} onRemove={removeGoal} onDeposit={addDeposit} onRemoveDeposit={removeDeposit} />
+        <GoalsCard goals={goals} onAdd={addGoal} onRemove={removeGoal} onMove={moveGoal} onDeposit={addDeposit} onRemoveDeposit={removeDeposit} />
 
         <TrendCharts chartData={monthsData.chartData} />
       </div>

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { usePersistedState } from './usePersistedState';
 import { MONTHS_KEY } from '../lib/constants';
 import { monthKey, formatMonthLabel, sumEntries } from '../lib/format';
-import { buildCurrentExpenses, committedAmountFor, sumCommittedExpenses } from '../lib/expenses';
+import { buildCurrentExpenses, actualAmountFor, sumActualExpenses } from '../lib/expenses';
 
 function normalizeExtra(raw) {
   const e = raw || {};
@@ -59,8 +59,10 @@ export function useMonthsData(categories) {
     });
   }
 
+  // Leftover reflects real cash flow: income minus what's actually been paid
+  // or spent so far, not what's budgeted/estimated.
   const totalExpenses = useMemo(() => {
-    return categories.reduce((sum, cat) => sum + committedAmountFor(cat, currentExpenses[cat.name]), 0);
+    return categories.reduce((sum, cat) => sum + actualAmountFor(cat, currentExpenses[cat.name]), 0);
   }, [categories, currentExpenses]);
 
   const extraTotal =
@@ -83,7 +85,7 @@ export function useMonthsData(categories) {
         sumEntries(ex.sideCash) +
         sumEntries(ex.bonuses) +
         sumEntries(ex.overtime);
-      const exp = sumCommittedExpenses(m.expenses, categories);
+      const exp = sumActualExpenses(m.expenses, categories);
       return { month: formatMonthLabel(key), Income: inc, Expenses: exp, Leftover: inc - exp, rawKey: key };
     });
   }, [months, categories]);

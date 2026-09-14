@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Plus, Trash2, GraduationCap, Landmark } from 'lucide-react';
 import { formatMoney, sumEntries } from '../lib/format';
 import { cardStyle, labelStyle, inputStyle, dollarSignStyle } from '../styles';
+import ReorderButtons from './ReorderButtons';
 
-export default function GoalsCard({ goals, onAdd, onRemove, onDeposit, onRemoveDeposit }) {
+export default function GoalsCard({ goals, onAdd, onRemove, onMove, onDeposit, onRemoveDeposit }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'semester', target: '' });
   const [depositInputs, setDepositInputs] = useState({});
@@ -70,7 +71,7 @@ export default function GoalsCard({ goals, onAdd, onRemove, onDeposit, onRemoveD
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {goals.map((goal) => {
+        {goals.map((goal, i) => {
           const saved = sumEntries(goal.deposits);
           const remaining = Math.max(goal.target - saved, 0);
           const pct = Math.min((saved / goal.target) * 100, 100);
@@ -79,6 +80,10 @@ export default function GoalsCard({ goals, onAdd, onRemove, onDeposit, onRemoveD
             <div key={goal.id} style={{ borderTop: '1px solid #EFEDE7', paddingTop: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ReorderButtons
+                    canMoveUp={i > 0} canMoveDown={i < goals.length - 1}
+                    onMoveUp={() => onMove(goal.id, -1)} onMoveDown={() => onMove(goal.id, 1)}
+                  />
                   {goal.type === 'loan' ? <Landmark size={15} color="#6b6f76" /> : <GraduationCap size={15} color="#6b6f76" />}
                   <span style={{ fontSize: 14, fontWeight: 600, color: '#1C1E21' }}>{goal.name}</span>
                 </div>
