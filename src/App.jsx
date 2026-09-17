@@ -1,8 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
 import MonthSelector from './components/MonthSelector';
 import SummaryCards from './components/SummaryCards';
-import LeftoverSuggestion from './components/LeftoverSuggestion';
 import AddedMoney from './components/AddedMoney';
 import FixedExpensesCard from './components/FixedExpensesCard';
 import BudgetedExpensesCard from './components/BudgetedExpensesCard';
@@ -23,7 +22,6 @@ export default function FinanceTracker() {
     subscriptions, addSubscription, removeSubscription, subscriptionsLoaded, subscriptionsSaveError,
   } = useSubscriptions();
   const { order: extraOrder, moveField: moveExtraField } = useExtraOrder();
-  const [dismissedSuggestion, setDismissedSuggestion] = useState({});
 
   const fixedCategories = useMemo(() => categories.filter((c) => c.type === 'fixed'), [categories]);
   const variableCategories = useMemo(() => categories.filter((c) => c.type === 'variable'), [categories]);
@@ -31,9 +29,12 @@ export default function FinanceTracker() {
   const loading = !categoriesLoaded || !monthsData.monthsLoaded || !goalsLoaded || !subscriptionsLoaded;
   const saveError = categoriesSaveError || monthsData.monthsSaveError || goalsSaveError || subscriptionsSaveError;
 
-  function handleSuggestionAdd(goalId, amount) {
-    addDeposit(goalId, amount);
-    setDismissedSuggestion({ ...dismissedSuggestion, [monthsData.activeMonth]: true });
+  // Tagging part of an income entry (e.g. one paycheck) as earmarked for a
+  // goal needs both hooks: the label lives on the entry itself, the money
+  // itself lands as a real deposit on the goal.
+  function handleAllocate(field, entryId, goalId, amount) {
+    const allocation = monthsData.addAllocation(field, entryId, goalId, amount);
+    if (allocation) addDeposit(goalId, allocation.amount);
   }
 
   if (loading) {
@@ -68,21 +69,16 @@ export default function FinanceTracker() {
 
         <SummaryCards totalIncome={monthsData.totalIncome} totalExpenses={monthsData.totalExpenses} leftover={monthsData.leftover} />
 
-        <LeftoverSuggestion
-          leftover={monthsData.leftover}
-          goals={goals}
-          activeMonth={monthsData.activeMonth}
-          dismissed={!!dismissedSuggestion[monthsData.activeMonth]}
-          onDismiss={() => setDismissedSuggestion({ ...dismissedSuggestion, [monthsData.activeMonth]: true })}
-          onAdd={handleSuggestionAdd}
-        />
-
         <AddedMoney
           currentExtra={monthsData.currentExtra}
           order={extraOrder}
+          goals={goals}
+          totalAllocated={monthsData.totalAllocated}
           onMoveField={moveExtraField}
           onAdd={monthsData.addExtraEntry}
           onRemove={monthsData.removeExtraEntry}
+          onAllocate={handleAllocate}
+          onRemoveAllocation={monthsData.removeAllocation}
         />
 
         <FixedExpensesCard
